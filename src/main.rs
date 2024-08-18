@@ -1,4 +1,8 @@
+mod token;
+
 use std::env;
+
+use token::{Operator, Token};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -7,54 +11,35 @@ fn main() {
     }
 
     let input = args.last().unwrap();
-    let (mut ops, mut numbers) = tokenize(input);
+    let mut tokens = Token::tokenize(input);
+    tokens.reverse();
 
     println!("  .globl main");
     println!("main:");
 
-    println!("  li a0, {}", numbers.pop().unwrap());
+    if let Token::NUM(num) = tokens.pop().unwrap() {
+        println!("  li a0, {}", num);
+    } else {
+        panic!("invalid input");
+    }
 
-    while let Some(number) = numbers.pop() {
-        let op = ops.pop().unwrap();
-        match op {
-            '+' => {
-                println!("  addi a0, a0, {}", number);
+    while let Some(token) = tokens.pop() {
+        if let Some(Token::NUM(num)) = tokens.pop() {
+            match token {
+                Token::PUNCT(Operator::PLUS) => {
+                    println!("  addi a0, a0, {}", num);
+                }
+
+                Token::PUNCT(Operator::MINUS) => {
+                    println!("  addi a0, a0, -{}", num);
+                }
+
+                _ => panic!("invalid input"),
             }
-
-            '-' => {
-                println!("  addi a0, a0, -{}", number);
-            }
-
-            _ => panic!("cannot reach here"),
+        } else {
+            panic!("invalid input");
         }
     }
 
     println!("  ret");
-}
-
-fn tokenize(input: &String) -> (Vec<char>, Vec<usize>) {
-    let input_chars = input.chars();
-    let mut ops: Vec<char> = vec![];
-    let mut numbers: Vec<usize> = vec![];
-    let mut current = 0;
-    for (i, c) in input_chars.enumerate() {
-        if c == '+' || c == '-' {
-            ops.push(c);
-
-            let number = to_number(&input[current..i]);
-            numbers.push(number);
-            current = i + 1;
-        }
-    }
-
-    numbers.push(to_number(&input[current..]));
-
-    ops.reverse();
-    numbers.reverse();
-
-    (ops, numbers)
-}
-
-fn to_number(s: &str) -> usize {
-    s.trim().parse::<usize>().unwrap()
 }
